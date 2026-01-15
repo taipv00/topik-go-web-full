@@ -1,11 +1,9 @@
-import fs from 'fs/promises';
-import path from 'path';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import ExamViewerWrapper from '../../../components/ExamViewerWrapper';
-import type { ExamData } from '../../../components/types';
-import { Metadata, ResolvingMetadata } from 'next';
+import { Metadata } from 'next';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
+import { getAllExams, getExamData } from '@/lib/examDataCache';
 
 // Interface cho props của Page component
 interface ExamTakePageProps {
@@ -14,51 +12,21 @@ interface ExamTakePageProps {
   }>;
 }
 
-// Đường dẫn đến file JSON chứa dữ liệu đề thi
-const EXAMS_DATA_PATH: string = path.join(process.cwd(), 'data', 'data.json');
-
-async function getAllExams(): Promise<ExamData[]> {
-  try {
-    const fileContent: string = await fs.readFile(EXAMS_DATA_PATH, 'utf-8');
-    const allExamsData: ExamData[] = JSON.parse(fileContent);
-    if (!Array.isArray(allExamsData)) {
-        console.error("Lỗi getAllExams: Dữ liệu đọc từ file không phải là một mảng.");
-        return [];
-    }
-    return allExamsData;
-  } catch (error: any) {
-    console.error("Lỗi trong getAllExams (đọc hoặc parse file JSON):", error.message);
-    return []; 
-  }
-}
-
-async function getExamData(examId: string): Promise<ExamData | null> {
-  try {
-    const allExamsData = await getAllExams();
-    const exam = allExamsData.find(e => e.id.toString() === examId.toString());
-    return exam || null;
-  } catch (error: any) {
-    console.error(`Lỗi khi lấy dữ liệu cho exam ${examId}:`, error.message);
-    return null;
-  }
-}
-
 export async function generateStaticParams(): Promise<{ examId: string }[]> {
    try {
         const allExamsData = await getAllExams();
         return allExamsData.map(exam => ({ examId: exam.id.toString() }));
    } catch (error: any) {
         console.error("Lỗi khi tạo static params:", error.message);
-        return []; 
+        return [];
    }
 }
 
 export async function generateMetadata(
-  { params }: { params: Promise<{ examId: string }> },
-  parent: ResolvingMetadata
+  { params }: { params: Promise<{ examId: string }> }
 ): Promise<Metadata> {
   const resolvedParams = await params;
-  const examId = resolvedParams.examId; 
+  const examId = resolvedParams.examId;
   const exam = await getExamData(examId);
 
   if (!exam) {
@@ -68,7 +36,7 @@ export async function generateMetadata(
       alternates: {
         canonical: `https://topikgo.com/exams/${examId}/take`,
       },
-      robots: { 
+      robots: {
         index: false,
         follow: true,
         nocache: true,
@@ -78,7 +46,7 @@ export async function generateMetadata(
 
   const title = `Làm bài thi ${exam.level} ${exam.skill} - ${exam.exam_number_description} (${exam.year_description}) - Topikgo`;
   const description = `Luyện tập và chuẩn bị cho kỳ thi TOPIK ${exam.level} với đề thi kỹ năng ${exam.skill} (${exam.exam_number_description} - ${exam.year_description}) trên Topikgo.com. Tài liệu ôn thi TOPIK toàn diện, cập nhật và hiệu quả.`;
-  
+
   let examKeywords = [
     `đề thi topik ${exam.exam_number_description.replace('제', '').replace('회', '').trim()}`,
     `topik ${exam.level.replace('TOPIK ', '').trim()}`,
@@ -86,7 +54,7 @@ export async function generateMetadata(
     `topik ${exam.year_description.replace('년도 TOPIK', '').trim()}`,
     'topikgo',
     `${exam.exam_number_description} ${exam.skill}`,
-    `${exam.source || ''}`, 
+    `${exam.source || ''}`,
     `${exam.year_description}`
   ].map(kw => kw.toLowerCase());
   examKeywords = [...new Set(examKeywords.filter(kw => kw && kw.trim() !== ''))];
@@ -110,7 +78,7 @@ export async function generateMetadata(
         {
           url: imageUrl,
           width: 1200,
-          height: 630,
+          height: 1630,
           alt: `Làm bài thi TOPIK ${exam.level} ${exam.skill} - ${exam.exam_number_description} tại Topikgo.com`,
         },
       ],
@@ -133,7 +101,7 @@ export default async function ExamTakePage({ params }: ExamTakePageProps) {
   const examData = await getExamData(examId);
 
   if (!examData) {
-    notFound(); 
+    notFound();
   }
 
   return (
@@ -152,8 +120,8 @@ export default async function ExamTakePage({ params }: ExamTakePageProps) {
           <span className="text-slate-700 font-medium">Làm bài</span>
         </nav>
       </div>
-      
+
       <ExamViewerWrapper examData={examData} />
     </div>
   );
-} 
+}

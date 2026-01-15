@@ -1,58 +1,67 @@
 // app/components/UserActivityTracker.tsx
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { useAuthStore } from '../store/authStore'; // Đảm bảo đường dẫn này đúng
+import { useAuthStore } from '../store/authStore';
 
 /**
  * UserActivityTracker Component
  * Ghi lại lượt truy cập của người dùng đã đăng nhập vào backend.
  * Component này không có UI, chỉ thực hiện logic theo dõi.
+ *
+ * Optimized để không ảnh hưởng đến UX:
+ * - Sử dụng fire-and-forget fetch (không await)
+ * - Debounce để tránh spam requests khi user navigate nhanh
+ * - keepalive flag để request hoàn tất ngay cả khi user rời trang
  */
 export default function UserActivityTracker() {
   const currentUser = useAuthStore((state) => state.currentUser);
-  const token = useAuthStore((state) => state.token); // Cần token để xác thực request
-  const pathname = usePathname(); // Lấy đường dẫn trang hiện tại
+  const token = useAuthStore((state) => state.token);
+  const pathname = usePathname();
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  console.log('UserActivityTracker mounted');
   useEffect(() => {
     // Chỉ gửi yêu cầu nếu có người dùng đăng nhập và có token
     if (currentUser && currentUser._id && token) {
-      const trackVisit = async () => {
-        try {
-          // Lấy API base URL từ biến môi trường của Next.js
-          const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4201'; // Đặt fallback URL nếu biến môi trường không có
+      // Clear previous timer nếu có
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
 
-          const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/analytics/track-visit`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`, // Gửi token để backend xác thực
-            },
-            body: JSON.stringify({
-              pagePath: pathname, // Gửi đường dẫn trang hiện tại
-              // Bạn có thể thêm các thông tin khác nếu muốn, ví dụ: deviceId, platform (nếu có thể lấy từ frontend)
-            }),
-          });
+      // Debounce 300ms để tránh spam khi user navigate nhanh
+      debounceTimerRef.current = setTimeout(() => {
+        const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4201';
 
-          if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Lỗi khi ghi lại lượt truy cập:', errorData.message);
-          } else {
-            console.log(`Đã ghi lại lượt truy cập của User ${currentUser.id} tại ${pathname}`);
+        // Fire-and-forget: không await, không block UI
+        fetch(`${NEXT_PUBLIC_API_BASE_URL}/analytics/track-visit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            pagePath: pathname,
+          }),
+          // keepalive: true cho phép request hoàn tất ngay cả khi user rời trang
+          keepalive: true,
+        }).catch((error) => {
+          // Silent fail - không log để tránh spam console
+          // Chỉ log ở development mode
+          if (process.env.NODE_ENV === 'development') {
+            console.debug('Track visit failed:', error.message);
           }
-        } catch (error) {
-          console.error('Lỗi mạng hoặc server khi ghi lại lượt truy cập:', error);
-        }
-      };
-
-      // Gọi hàm trackVisit khi component mount hoặc khi currentUser/token/pathname thay đổi
-      // Điều này đảm bảo mỗi khi người dùng đã đăng nhập chuyển trang, một lượt truy cập mới sẽ được ghi lại.
-      trackVisit();
+        });
+      }, 300);
     }
-  }, [currentUser, token, pathname]); // Dependencies: chạy lại effect khi currentUser, token, hoặc pathname thay đổi
 
-  // Component này không hiển thị gì cả, chỉ có tác dụng phụ (side effect)
+    // Cleanup function
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [currentUser, token, pathname]);
+
   return null;
 }

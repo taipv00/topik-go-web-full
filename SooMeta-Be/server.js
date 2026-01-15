@@ -77,9 +77,6 @@ app.post('/send-mail', async (req, res) => {
     },
   });
 
-  console.log("===========")
-  console.log(process.env.EMAIL)
-  console.log(process.env.PASSWORD)
   const mailOptions = {
     from: `"SooMeta Team" <${process.env.EMAIL}>`,
     to: email,

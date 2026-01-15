@@ -1,7 +1,7 @@
 // src/app/layout.tsx
 import Footer from './components/Footer';
 import Navbar from './components/Navbar';
-import UserActivityTracker from './components/UserActivityTracker';
+import EnhancedActivityTracker from './components/EnhancedActivityTracker';
 import ResizableLayout from './components/ResizableLayout';
 import './globals.css'; // Import CSS toàn cục
 import { cookies } from 'next/headers';
@@ -145,7 +145,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
               <Navbar />
               <main>{children}</main>
               <Footer />
-              <UserActivityTracker />
+              <EnhancedActivityTracker />
             </>
           }
         />

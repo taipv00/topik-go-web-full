@@ -17,6 +17,7 @@ const sidebarItems = [
   { name: 'Download Stats', href: '/admin/download-stats' },
   { name: 'Feedback', href: '/admin/feedback' },
   { name: 'Analytics', href: '/admin/analytics' },
+  { name: 'Page Analytics', href: '/admin/page-analytics' },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {

@@ -28,7 +28,8 @@ services:
     container_name: topikgo-frontend
     restart: unless-stopped
     ports:
-      - "3081:3081"
+      - "80:3081"     # Map port 80 (HTTP default) to container port 3081
+      - "3081:3081"   # Keep 3081 for direct access
     env_file:
       - .env
     environment:
